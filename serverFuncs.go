@@ -1,5 +1,18 @@
 package main
 
+import (
+	"bufio"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"net"
+
+	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/txscript"
+)
+
 func createElectrumRequest(method string, params []interface{}) string {
 	// Create a map for the JSON-RPC request
 	request := map[string]interface{}{
