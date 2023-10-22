@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/davecgh/go-spew/spew"
 )
 
 const (
@@ -16,7 +17,7 @@ const (
 	rpcPass     = "rpc"
 	electrumURL = "127.0.0.1:50001"
 	coreURL     = "http://localhost"
-	walletURL   = "/wallet/bank"
+	walletURL   = "/wallet/bank" // bank wallet for regtest use
 	nmcPort     = 18443
 	btcPort     = 18444
 )
@@ -25,6 +26,46 @@ var (
 	nmcParams chaincfg.Params
 	btcParms  chaincfg.Params
 )
+
+type AuxPow struct {
+	Tx                map[string]interface{} `json:"tx"`
+	ChainIndex        float64                `json:"chainindex"`
+	MerkleBranch      []interface{}          `json:"merklebranch"`
+	ChainMerkleBranch []interface{}          `json:"chainmerklebranch"`
+	ParentBlock       struct {
+		Version    float64 `json:"version"`
+		VersionHex string  `json:"versionHex"`
+		MerkleRoot string  `json:"merkleroot"`
+		Time       float64 `json:"time"`
+		Nonce      float64 `json:"nonce"`
+		Bits       string  `json:"bits"`
+		Difficulty float64 `json:"difficulty"`
+		Hash       string  `json:"hash"`
+	} `json:"parentblock"`
+}
+
+type Block struct {
+	Version           float64  `json:"version"`
+	MedianTime        float64  `json:"mediantime"`
+	ChainWork         string   `json:"chainwork"`
+	Tx                []string `json:"tx"`
+	Weight            float64  `json:"weight"`
+	MerkleRoot        string   `json:"merkleroot"`
+	Time              float64  `json:"time"`
+	Nonce             float64  `json:"nonce"`
+	Bits              string   `json:"bits"`
+	Confirmations     float64  `json:"confirmations"`
+	NextBlockHash     string   `json:"nextblockhash"`
+	StrippedSize      float64  `json:"strippedsize"`
+	Hash              string   `json:"hash"`
+	VersionHex        string   `json:"versionHex"`
+	PreviousBlockHash string   `json:"previousblockhash"`
+	Difficulty        float64  `json:"difficulty"`
+	Height            float64  `json:"height"`
+	NTx               float64  `json:"nTx"`
+	Size              float64  `json:"size"`
+	AuxPow            AuxPow   `json:"auxpow"`
+}
 
 // postHandler is a dedicated function to handle POST requests to "/post".
 func templateEndpoint(w http.ResponseWriter, r *http.Request) {
@@ -91,12 +132,16 @@ func exampleElectrum() {
 
 func main() {
 
-	height, err := getBlockHash(257, nmcPort)
+	hash, err := getBlockHash(257, nmcPort)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	fmt.Println("blockHash: ", height)
+	fmt.Println("blockHash: ", hash)
+
+	block, _ := getBlock(hash, nmcPort)
+	fmt.Println("==========================================")
+	spew.Dump(block)
 
 	http.HandleFunc("/template", templateEndpoint)
 	http.HandleFunc("/nmc/loadHomePage", nmcLoadHomeReq)
@@ -119,13 +164,41 @@ func loadHome(coin string) {
 	// Get 10 Latest Blocks
 
 	for i := 0; i < 10; i++ {
-
+		blockHash, _ := getBlockHash((blockHeight - i), nmcPort)
+		block, _ := getBlock(blockHash, nmcPort)
+		spew.Dump(block)
 	}
 
 	// Get Trends
 
 }
 
+func getBlock(hash string, portNum int) (interface{}, error) {
+
+	method := "getblock"
+	params := []interface{}{hash}
+
+	result, err := makeRPCRequest(method, params, nmcPort)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return "", err
+	}
+	// Convert the provided data to the MyStruct type
+	var myStruct Block
+	dataJSON, err := json.Marshal(result)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return nil, err
+	}
+
+	err = json.Unmarshal(dataJSON, &myStruct)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return nil, err
+	}
+
+	return myStruct, nil
+}
 func getBlockHash(height int, portNum int) (string, error) {
 
 	method := "getblockhash"
