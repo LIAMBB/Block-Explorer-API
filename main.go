@@ -91,12 +91,12 @@ func exampleElectrum() {
 
 func main() {
 
-	height, err := getBlockHeight(nmcPort)
+	height, err := getBlockHash(257, nmcPort)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	fmt.Println("height: ", height)
+	fmt.Println("blockHash: ", height)
 
 	http.HandleFunc("/template", templateEndpoint)
 	http.HandleFunc("/nmc/loadHomePage", nmcLoadHomeReq)
@@ -108,11 +108,36 @@ func main() {
 
 func loadHome(coin string) {
 	// Get BlockCount
+	blockHeight, err := getBlockHeight(nmcPort)
 
-	// Get Trends
+	if err != nil {
+		fmt.Println("Error getting current blockheight")
+	}
+
+	fmt.Println("Blockheight: ", blockHeight)
 
 	// Get 10 Latest Blocks
 
+	for i := 0; i < 10; i++ {
+
+	}
+
+	// Get Trends
+
+}
+
+func getBlockHash(height int, portNum int) (string, error) {
+
+	method := "getblockhash"
+	params := []interface{}{height}
+
+	result, err := makeRPCRequest(method, params, nmcPort)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return "", err
+	}
+
+	return fmt.Sprint(result), nil
 }
 
 func getBlockHeight(portNum int) (int, error) {
