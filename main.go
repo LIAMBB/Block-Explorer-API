@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/davecgh/go-spew/spew"
 )
 
 const (
@@ -26,44 +27,63 @@ var (
 	btcParms  chaincfg.Params
 )
 
-type AuxPow struct {
-	Tx                map[string]interface{} `json:"tx"`
-	ChainIndex        float64                `json:"chainindex"`
-	MerkleBranch      []interface{}          `json:"merklebranch"`
-	ChainMerkleBranch []interface{}          `json:"chainmerklebranch"`
-	ParentBlock       struct {
-		Version    float64 `json:"version"`
-		VersionHex string  `json:"versionHex"`
-		MerkleRoot string  `json:"merkleroot"`
-		Time       float64 `json:"time"`
-		Nonce      float64 `json:"nonce"`
-		Bits       string  `json:"bits"`
-		Difficulty float64 `json:"difficulty"`
-		Hash       string  `json:"hash"`
-	} `json:"parentblock"`
+type BlockData struct {
+	Hash              string     `json:"hash"`
+	MerkleRoot        string     `json:"merkleroot"`
+	Difficulty        float64    `json:"difficulty"`
+	MedianTime        float64    `json:"mediantime"`
+	StrippedSize      float64    `json:"strippedsize"`
+	VersionHex        string     `json:"versionHex"`
+	Time              float64    `json:"time"`
+	Nonce             float64    `json:"nonce"`
+	Bits              string     `json:"bits"`
+	PreviousBlockHash string     `json:"previousblockhash"`
+	NTx               float64    `json:"nTx"`
+	Weight            float64    `json:"weight"`
+	Version           float64    `json:"version"`
+	Height            float64    `json:"height"`
+	ChainWork         string     `json:"chainwork"`
+	Confirmations     float64    `json:"confirmations"`
+	Size              float64    `json:"size"`
+	Tx                []TxData   `json:"tx"`
+	AuxPow            AuxPowData `json:"auxpow"`
 }
 
-type Block struct {
-	Version           float64  `json:"version"`
-	MedianTime        float64  `json:"mediantime"`
-	ChainWork         string   `json:"chainwork"`
-	Tx                []string `json:"tx"`
-	Weight            float64  `json:"weight"`
-	MerkleRoot        string   `json:"merkleroot"`
-	Time              float64  `json:"time"`
-	Nonce             float64  `json:"nonce"`
-	Bits              string   `json:"bits"`
-	Confirmations     float64  `json:"confirmations"`
-	NextBlockHash     string   `json:"nextblockhash"`
-	StrippedSize      float64  `json:"strippedsize"`
-	Hash              string   `json:"hash"`
-	VersionHex        string   `json:"versionHex"`
-	PreviousBlockHash string   `json:"previousblockhash"`
-	Difficulty        float64  `json:"difficulty"`
-	Height            float64  `json:"height"`
-	NTx               float64  `json:"nTx"`
-	Size              float64  `json:"size"`
-	AuxPow            AuxPow   `json:"auxpow"`
+type TxData struct {
+	VSize    float64       `json:"vsize"`
+	Weight   float64       `json:"weight"`
+	Vin      []VinData     `json:"vin"`
+	Size     float64       `json:"size"`
+	Hash     string        `json:"hash"`
+	Version  float64       `json:"version"`
+	Locktime float64       `json:"locktime"`
+	Vout     []interface{} `json:"vout"`
+	TxID     string        `json:"txid"`
+}
+
+type VinData struct {
+	Coinbase    string        `json:"coinbase"`
+	TxInWitness []interface{} `json:"txinwitness"`
+	Sequence    float64       `json:"sequence"`
+}
+
+type AuxPowData struct {
+	MerkleBranch      []interface{} `json:"merklebranch"`
+	ChainMerkleBranch []interface{} `json:"chainmerklebranch"`
+	ParentBlock       ParentBlock   `json:"parentblock"`
+	Tx                TxData        `json:"tx"`
+	ChainIndex        float64       `json:"chainindex"`
+}
+
+type ParentBlock struct {
+	Nonce      float64 `json:"nonce"`
+	Bits       string  `json:"bits"`
+	Difficulty float64 `json:"difficulty"`
+	Hash       string  `json:"hash"`
+	Version    float64 `json:"version"`
+	VersionHex string  `json:"versionHex"`
+	MerkleRoot string  `json:"merkleroot"`
+	Time       float64 `json:"time"`
 }
 
 // postHandler is a dedicated function to handle POST requests to "/post".
@@ -131,8 +151,10 @@ func exampleElectrum() {
 
 func main() {
 
-	loadHome("nmc")
+	// loadHome("nmc")
+	block, _ := getBlock("6c868faf0749cec40b35f1b58c696faf4720796b4e33970ccb575149a326910c", nmcPort)
 
+	spew.Dump(block.Tx)
 	http.HandleFunc("/template", templateEndpoint)
 	http.HandleFunc("/nmc/loadHomePage", nmcLoadHomeReq)
 
@@ -162,38 +184,43 @@ func loadHome(coin string) {
 
 	// Get 10 Latest Blocks
 
+	var newestBlocks []BlockData
+
 	for i := 0; i < 10; i++ {
 		blockHash, _ := getBlockHash((blockHeight - i), nmcPort)
+		fmt.Println(blockHash)
 		block, _ := getBlock(blockHash, nmcPort)
 		fmt.Println(block.Height)
+		newestBlocks = append(newestBlocks, block)
 	}
 
 	// Get Trends
 
 }
 
-func getBlock(hash string, portNum int) (Block, error) {
+func getBlock(hash string, portNum int) (BlockData, error) {
 
 	method := "getblock"
-	params := []interface{}{hash}
+	params := []interface{}{hash, 2} // verbosity = 2 includes all transactions in block
 
 	result, err := makeRPCRequest(method, params, nmcPort)
 	if err != nil {
 		fmt.Println("Error:", err)
-		return Block{}, err
+		return BlockData{}, err
 	}
+
 	// Convert the provided data to the MyStruct type
-	var myStruct Block
+	var myStruct BlockData
 	dataJSON, err := json.Marshal(result)
 	if err != nil {
 		fmt.Println("Error:", err)
-		return Block{}, err
+		return BlockData{}, err
 	}
 
 	err = json.Unmarshal(dataJSON, &myStruct)
 	if err != nil {
 		fmt.Println("Error:", err)
-		return Block{}, err
+		return BlockData{}, err
 	}
 
 	return myStruct, nil
