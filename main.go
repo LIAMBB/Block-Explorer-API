@@ -9,7 +9,6 @@ import (
 	"net/http"
 
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/davecgh/go-spew/spew"
 )
 
 const (
@@ -106,6 +105,21 @@ type ParentBlockData struct {
 	Bits       string  `json:"bits"`
 }
 
+type HomeBlockTrend struct {
+	TxCount    int     `json:"txcount"`
+	BlockValue float32 `json:"blockvalue"`
+}
+type HomeBlock struct {
+	Height      int     `json:"height"`
+	Hash        string  `json:"hash"`
+	Fees        float32 `json:"fees"`
+	BlockReward float32 `json:"blockreward"`
+	Size        float32 `json:"size"`
+	BlockTime   int32   `json:"blocktime"`
+	TxCount     int     `json:"txcount"`
+	BlockValue  float32 `json:"blockvalue"`
+}
+
 // postHandler is a dedicated function to handle POST requests to "/post".
 func templateEndpoint(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -171,8 +185,8 @@ func exampleElectrum() {
 
 func main() {
 
-	// loadHome("nmc")
-	getBlock("4ddbe4874f32ad83727a9dafbf177394d9da3e1311c361e5fb27aa139f2a2103", nmcPort)
+	loadHome("nmc")
+	// block, _ := getBlock("4ddbe4874f32ad83727a9dafbf177394d9da3e1311c361e5fb27aa139f2a2103", nmcPort)
 
 	// spew.Dump(block.Tx)
 	http.HandleFunc("/template", templateEndpoint)
@@ -204,13 +218,14 @@ func loadHome(coin string) {
 
 	// Get 10 Latest Blocks
 
-	var newestBlocks []BlockData
+	var newestBlocks []HomeBlock
 
 	for i := 0; i < 10; i++ {
 		blockHash, _ := getBlockHash((blockHeight - i), nmcPort)
 		fmt.Println(blockHash)
 		block, _ := getBlock(blockHash, nmcPort)
 		fmt.Println(block.Height)
+		// Add block to block list
 		newestBlocks = append(newestBlocks, block)
 	}
 
@@ -229,7 +244,6 @@ func getBlock(hash string, portNum int) (BlockData, error) {
 		return BlockData{}, err
 	}
 
-	spew.Dump(result)
 	// Convert the provided data to the MyStruct type
 	var myStruct BlockData
 	dataJSON, err := json.Marshal(result)
