@@ -17,8 +17,8 @@ const (
 	electrumURL = "127.0.0.1:50001"
 	coreURL     = "http://localhost"
 	walletURL   = "/wallet/bank"
-	nmcPort     = ":18443"
-	btcPort     = ":18444"
+	nmcPort     = 18443
+	btcPort     = 18444
 )
 
 var (
@@ -91,16 +91,12 @@ func exampleElectrum() {
 
 func main() {
 
-	method := "getblockhash"
-	params := []interface{}{250, []interface{}{"minfeerate", "avgfeerate"}}
-
-	result, err := makeRPCRequest(method, params)
+	height, err := getBlockHeight(nmcPort)
 	if err != nil {
-		fmt.Println("Error:", err)
-		return
+		fmt.Println(err)
 	}
 
-	fmt.Println("Result:", result)
+	fmt.Println("height: ", height)
 
 	http.HandleFunc("/template", templateEndpoint)
 	http.HandleFunc("/nmc/loadHomePage", nmcLoadHomeReq)
@@ -117,6 +113,24 @@ func loadHome(coin string) {
 
 	// Get 10 Latest Blocks
 
+}
+
+func getBlockHeight(portNum int) (int, error) {
+
+	method := "getblockcount"
+	params := []interface{}{}
+
+	result, err := makeRPCRequest(method, params, nmcPort)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return 0, err
+	}
+
+	if val, ok := result.(float64); ok {
+		return int(val), nil
+	} else {
+		return 0, fmt.Errorf("int conversion failed")
+	}
 }
 
 func nmcLoadHomeReq(w http.ResponseWriter, r *http.Request) {
@@ -186,7 +200,8 @@ func nmcLoadHomeReq(w http.ResponseWriter, r *http.Request) {
 // }
 
 // fmt.Println("Result:", result)
-func makeRPCRequest(method string, params []interface{}) (interface{}, error) {
+// Sends a RPC request to the local core
+func makeRPCRequest(method string, params []interface{}, portNum int) (interface{}, error) {
 	// Set the RPC credentials
 	username := "rpc"
 	password := "rpc"
@@ -209,7 +224,7 @@ func makeRPCRequest(method string, params []interface{}) (interface{}, error) {
 	auth := base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
 
 	// Prepare the HTTP request
-	req, err := http.NewRequest("POST", coreURL+nmcPort, bytes.NewBuffer(requestJSON))
+	req, err := http.NewRequest("POST", coreURL+":"+fmt.Sprint(portNum), bytes.NewBuffer(requestJSON))
 	if err != nil {
 		return nil, err
 	}
