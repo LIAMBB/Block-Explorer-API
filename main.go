@@ -132,16 +132,7 @@ func exampleElectrum() {
 
 func main() {
 
-	hash, err := getBlockHash(257, nmcPort)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	fmt.Println("blockHash: ", hash)
-
-	block, _ := getBlock(hash, nmcPort)
-	fmt.Println("==========================================")
-	spew.Dump(block)
+	loadHome("nmc")
 
 	http.HandleFunc("/template", templateEndpoint)
 	http.HandleFunc("/nmc/loadHomePage", nmcLoadHomeReq)
@@ -152,8 +143,17 @@ func main() {
 }
 
 func loadHome(coin string) {
+	port := 0
+	if coin == "nmc" {
+		port = nmcPort
+	} else if coin == "btc" {
+		port = btcPort
+	} else {
+		return // Error
+	}
+
 	// Get BlockCount
-	blockHeight, err := getBlockHeight(nmcPort)
+	blockHeight, err := getBlockHeight(port)
 
 	if err != nil {
 		fmt.Println("Error getting current blockheight")
@@ -199,6 +199,7 @@ func getBlock(hash string, portNum int) (interface{}, error) {
 
 	return myStruct, nil
 }
+
 func getBlockHash(height int, portNum int) (string, error) {
 
 	method := "getblockhash"
