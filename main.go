@@ -9,7 +9,6 @@ import (
 	"net/http"
 
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/davecgh/go-spew/spew"
 )
 
 const (
@@ -166,14 +165,14 @@ func loadHome(coin string) {
 	for i := 0; i < 10; i++ {
 		blockHash, _ := getBlockHash((blockHeight - i), nmcPort)
 		block, _ := getBlock(blockHash, nmcPort)
-		spew.Dump(block)
+		fmt.Println(block.Height)
 	}
 
 	// Get Trends
 
 }
 
-func getBlock(hash string, portNum int) (interface{}, error) {
+func getBlock(hash string, portNum int) (Block, error) {
 
 	method := "getblock"
 	params := []interface{}{hash}
@@ -181,20 +180,20 @@ func getBlock(hash string, portNum int) (interface{}, error) {
 	result, err := makeRPCRequest(method, params, nmcPort)
 	if err != nil {
 		fmt.Println("Error:", err)
-		return "", err
+		return Block{}, err
 	}
 	// Convert the provided data to the MyStruct type
 	var myStruct Block
 	dataJSON, err := json.Marshal(result)
 	if err != nil {
 		fmt.Println("Error:", err)
-		return nil, err
+		return Block{}, err
 	}
 
 	err = json.Unmarshal(dataJSON, &myStruct)
 	if err != nil {
 		fmt.Println("Error:", err)
-		return nil, err
+		return Block{}, err
 	}
 
 	return myStruct, nil
