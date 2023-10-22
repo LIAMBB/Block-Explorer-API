@@ -28,62 +28,82 @@ var (
 )
 
 type BlockData struct {
-	Hash              string     `json:"hash"`
-	MerkleRoot        string     `json:"merkleroot"`
-	Difficulty        float64    `json:"difficulty"`
+	Weight            float64    `json:"weight"`
+	Bits              string     `json:"bits"`
+	Confirmations     float64    `json:"confirmations"`
 	MedianTime        float64    `json:"mediantime"`
-	StrippedSize      float64    `json:"strippedsize"`
-	VersionHex        string     `json:"versionHex"`
+	NTx               float64    `json:"nTx"`
+	MerkleRoot        string     `json:"merkleroot"`
 	Time              float64    `json:"time"`
 	Nonce             float64    `json:"nonce"`
-	Bits              string     `json:"bits"`
-	PreviousBlockHash string     `json:"previousblockhash"`
-	NTx               float64    `json:"nTx"`
-	Weight            float64    `json:"weight"`
-	Version           float64    `json:"version"`
-	Height            float64    `json:"height"`
+	Difficulty        float64    `json:"difficulty"`
+	Hash              string     `json:"hash"`
+	VersionHex        string     `json:"versionHex"`
 	ChainWork         string     `json:"chainwork"`
-	Confirmations     float64    `json:"confirmations"`
-	Size              float64    `json:"size"`
 	Tx                []TxData   `json:"tx"`
 	AuxPow            AuxPowData `json:"auxpow"`
+	Version           float64    `json:"version"`
+	PreviousBlockHash string     `json:"previousblockhash"`
+	Height            float64    `json:"height"`
+	StrippedSize      float64    `json:"strippedsize"`
 }
 
 type TxData struct {
-	VSize    float64       `json:"vsize"`
-	Weight   float64       `json:"weight"`
-	Vin      []VinData     `json:"vin"`
-	Size     float64       `json:"size"`
-	Hash     string        `json:"hash"`
-	Version  float64       `json:"version"`
-	Locktime float64       `json:"locktime"`
-	Vout     []interface{} `json:"vout"`
-	TxID     string        `json:"txid"`
+	Locktime float64    `json:"locktime"`
+	Vout     []VoutData `json:"vout"`
+	Hex      string     `json:"hex"`
+	Version  float64    `json:"version"`
+	Weight   float64    `json:"weight"`
+	Size     float64    `json:"size"`
+	Vsize    float64    `json:"vsize"`
+	Vin      []VinData  `json:"vin"`
+	TxID     string     `json:"txid"`
+	Hash     string     `json:"hash"`
+}
+
+type VoutData struct {
+	Value        float64          `json:"value"`
+	N            float64          `json:"n"`
+	ScriptPubKey ScriptPubKeyData `json:"scriptPubKey"`
+}
+
+type ScriptPubKeyData struct {
+	Asm     string `json:"asm"`
+	Hex     string `json:"hex"`
+	Address string `json:"address"`
+	Type    string `json:"type"`
 }
 
 type VinData struct {
-	Coinbase    string        `json:"coinbase"`
-	TxInWitness []interface{} `json:"txinwitness"`
-	Sequence    float64       `json:"sequence"`
+	Sequence  float64       `json:"sequence"`
+	TxID      string        `json:"txid"`
+	Vout      float64       `json:"vout"`
+	ScriptSig ScriptSigData `json:"scriptSig"`
+	Coinbase  string        `json:"coinbase"`
+}
+
+type ScriptSigData struct {
+	Asm string `json:"asm"`
+	Hex string `json:"hex"`
 }
 
 type AuxPowData struct {
-	MerkleBranch      []interface{} `json:"merklebranch"`
-	ChainMerkleBranch []interface{} `json:"chainmerklebranch"`
-	ParentBlock       ParentBlock   `json:"parentblock"`
-	Tx                TxData        `json:"tx"`
-	ChainIndex        float64       `json:"chainindex"`
+	Tx                TxData          `json:"tx"`
+	ChainIndex        float64         `json:"chainindex"`
+	MerkleBranch      []interface{}   `json:"merklebranch"`
+	ChainMerkleBranch []interface{}   `json:"chainmerklebranch"`
+	ParentBlock       ParentBlockData `json:"parentblock"`
 }
 
-type ParentBlock struct {
-	Nonce      float64 `json:"nonce"`
-	Bits       string  `json:"bits"`
+type ParentBlockData struct {
 	Difficulty float64 `json:"difficulty"`
 	Hash       string  `json:"hash"`
 	Version    float64 `json:"version"`
 	VersionHex string  `json:"versionHex"`
 	MerkleRoot string  `json:"merkleroot"`
 	Time       float64 `json:"time"`
+	Nonce      float64 `json:"nonce"`
+	Bits       string  `json:"bits"`
 }
 
 // postHandler is a dedicated function to handle POST requests to "/post".
@@ -152,9 +172,9 @@ func exampleElectrum() {
 func main() {
 
 	// loadHome("nmc")
-	block, _ := getBlock("6c868faf0749cec40b35f1b58c696faf4720796b4e33970ccb575149a326910c", nmcPort)
+	getBlock("4ddbe4874f32ad83727a9dafbf177394d9da3e1311c361e5fb27aa139f2a2103", nmcPort)
 
-	spew.Dump(block.Tx)
+	// spew.Dump(block.Tx)
 	http.HandleFunc("/template", templateEndpoint)
 	http.HandleFunc("/nmc/loadHomePage", nmcLoadHomeReq)
 
@@ -209,6 +229,7 @@ func getBlock(hash string, portNum int) (BlockData, error) {
 		return BlockData{}, err
 	}
 
+	spew.Dump(result)
 	// Convert the provided data to the MyStruct type
 	var myStruct BlockData
 	dataJSON, err := json.Marshal(result)
