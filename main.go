@@ -15,7 +15,7 @@ import (
 const (
 	rpcUser     = "rpc"
 	rpcPass     = "rpc"
-	electrumURL = "127.0.0.1:50005"
+	electrumURL = "192.168.1.2:50001"
 	coreURL     = "http://localhost"
 	walletURL   = "/wallet/bank" // bank wallet for regtest use
 	nmcPort     = 18443
