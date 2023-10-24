@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/davecgh/go-spew/spew"
 )
 
 const (
@@ -23,7 +24,7 @@ const (
 
 var (
 	nmcParams chaincfg.Params
-	btcParms  chaincfg.Params
+	btcParams chaincfg.Params
 )
 
 type BlockData struct {
@@ -240,7 +241,7 @@ func main() {
 
 	// spew.Dump(block.Tx)
 	http.HandleFunc("/template", templateEndpoint)
-	http.HandleFunc("/nmc/loadHomePage", nmcLoadHomeReq)
+	http.HandleFunc("/nmc/loadhomepage", nmcLoadHomeReq)
 
 	port := "8080"
 	fmt.Printf("Server is running on port %s...\n", port)
@@ -262,12 +263,14 @@ func parseBlockTxs(txs []TxData, port int) (float32 /*reward*/, float32 /*fees*/
 			voutVal += vout.Value
 		}
 
-		if len(tx.Vin) == 0 { //Block Reward Tx
+		if len(tx.Vin) == 1 && tx.Vin[0].TxID == "" { //Block Reward Tx
 			reward += float32(voutVal)
 			value += float32(voutVal) // rewards don't have vin or fee but do contribute to block tx value
 		} else { //Regular Transaction
 			for _, vin := range tx.Vin {
 				temp, _ := getTx(vin.TxID, port)
+				spew.Dump(tx.Vin)
+				fmt.Println("float: ", vin.Vout, " int: ", int(vin.Vout))
 				vinVal += temp.Vout[int(vin.Vout)].Value
 			}
 			fees += float32(vinVal - voutVal)
@@ -336,7 +339,6 @@ func loadHome(coin string) ([]HomeBlock, []HomeBlockTrend, error) {
 	}
 
 	return newestBlocks, homeTrends, nil
-
 }
 
 func getBlock(hash string, portNum int) (BlockData, error) {
