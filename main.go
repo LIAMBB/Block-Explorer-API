@@ -271,6 +271,7 @@ func parseBlockTxs(txs []TxData, port int) (float32 /*reward*/, float32 /*fees*/
 				temp, _ := getTx(vin.TxID, port)
 				spew.Dump(tx.Vin)
 				fmt.Println("float: ", vin.Vout, " int: ", int(vin.Vout))
+				spew.Dump(temp.Vout)
 				vinVal += temp.Vout[int(vin.Vout)].Value
 			}
 			fees += float32(vinVal - voutVal)
