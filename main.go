@@ -299,7 +299,7 @@ func loadHome(coin string) ([]HomeBlock, []HomeBlockTrend, error) {
 	} else if coin == "btc" {
 		port = btcPort
 	} else {
-		return // Error
+		return []HomeBlock{}, []HomeBlockTrend{}, fmt.Errorf("invalid coin") // Error
 	}
 
 	// Get BlockCount
