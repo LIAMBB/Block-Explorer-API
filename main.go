@@ -105,10 +105,6 @@ type ParentBlockData struct {
 	Bits       string  `json:"bits"`
 }
 
-type HomeBlockTrend struct {
-	TxCount    int     `json:"txcount"`
-	BlockValue float32 `json:"blockvalue"`
-}
 type HomeBlock struct {
 	Height      int     `json:"height"`
 	Hash        string  `json:"hash"`
@@ -118,6 +114,60 @@ type HomeBlock struct {
 	BlockTime   int32   `json:"blocktime"`
 	TxCount     int     `json:"txcount"`
 	BlockValue  float32 `json:"blockvalue"`
+}
+
+type ElectrumTransaction struct {
+	TxID          string             `json:"txid"`
+	Hash          string             `json:"hash"`
+	Version       int                `json:"version"`
+	Size          int                `json:"size"`
+	Vsize         int                `json:"vsize"`
+	Weight        int                `json:"weight"`
+	Locktime      int                `json:"locktime"`
+	Vin           []ElectrumVinData  `json:"vin"`
+	Vout          []ElectrumVoutData `json:"vout"`
+	Hex           string             `json:"hex"`
+	BlockHash     string             `json:"blockhash"`
+	Confirmations int                `json:"confirmations"`
+	Time          int64              `json:"time"`
+	BlockTime     int64              `json:"blocktime"`
+}
+
+type ElectrumVinData struct {
+	TxID      string                `json:"txid"`
+	Vout      int                   `json:"vout"`
+	ScriptSig ElectrumScriptSigData `json:"scriptSig"`
+	Sequence  int                   `json:"sequence"`
+}
+
+type ElectrumScriptSigData struct {
+	Asm string `json:"asm"`
+	Hex string `json:"hex"`
+}
+
+type ElectrumVoutData struct {
+	Value        float64                  `json:"value"`
+	N            int                      `json:"n"`
+	ScriptPubKey ElectrumScriptPubKeyData `json:"scriptPubKey"`
+}
+
+type ElectrumScriptPubKeyData struct {
+	Asm     string `json:"asm"`
+	Hex     string `json:"hex"`
+	Address string `json:"address"`
+	Type    string `json:"type"`
+}
+
+type HomeBlockTrend struct {
+	TxCount    int     `json:"txcount"`
+	BlockValue float32 `json:"blockvalue"`
+}
+
+// TODO: replace the implementations pf this with an interface{}["result"] instead to save on repetitive ElectrumResponse structs
+type ElectrumTransactionResponse struct {
+	JSONRPC string              `json:"jsonrpc"`
+	Result  ElectrumTransaction `json:"result"`
+	ID      int                 `json:"id"`
 }
 
 // postHandler is a dedicated function to handle POST requests to "/post".
@@ -185,7 +235,7 @@ func exampleElectrum() {
 
 func main() {
 
-	loadHome("nmc")
+	// loadHome("nmc")
 	// block, _ := getBlock("4ddbe4874f32ad83727a9dafbf177394d9da3e1311c361e5fb27aa139f2a2103", nmcPort)
 
 	// spew.Dump(block.Tx)
@@ -197,7 +247,52 @@ func main() {
 	http.ListenAndServe(":"+port, nil)
 }
 
-func loadHome(coin string) {
+// TODO: implement go channels for multi-threading the vin process (requires a lot of electrum requests)
+// Current implementation will be pretty slow due to single threaded iteration
+func parseBlockTxs(txs []TxData, port int) (float32 /*reward*/, float32 /*fees*/, float32 /*value*/, error /*error*/) {
+	var reward float32 = 0.0
+	var fees float32 = 0.0
+	var value float32 = 0.0
+
+	for _, tx := range txs {
+		vinVal := 0.0
+		voutVal := 0.0
+
+		for _, vout := range tx.Vout {
+			voutVal += vout.Value
+		}
+
+		if len(tx.Vin) == 0 { //Block Reward Tx
+			reward += float32(voutVal)
+			value += float32(voutVal) // rewards don't have vin or fee but do contribute to block tx value
+		} else { //Regular Transaction
+			for _, vin := range tx.Vin {
+				temp, _ := getTx(vin.TxID, port)
+				vinVal += temp.Vout[int(vin.Vout)].Value
+			}
+			fees += float32(vinVal - voutVal)
+			value += float32(vinVal)
+		}
+	}
+
+	// reward, fee, value, err
+	return reward, fees, value, nil
+}
+
+func getTx(txid string, port int) (ElectrumTransaction, error) {
+	params := []any{txid, true} // false=rawTx, true=verboseTx
+	reqJSON := createElectrumRequest("blockchain.transaction.get", params)
+	res := sendElectrumRequest(reqJSON)
+
+	var response ElectrumTransactionResponse
+	err := json.Unmarshal([]byte(res), &response)
+	if err != nil {
+		return ElectrumTransaction{}, err
+	}
+	return response.Result, nil
+}
+
+func loadHome(coin string) ([]HomeBlock, []HomeBlockTrend, error) {
 	port := 0
 	if coin == "nmc" {
 		port = nmcPort
@@ -216,20 +311,31 @@ func loadHome(coin string) {
 
 	fmt.Println("Blockheight: ", blockHeight)
 
-	// Get 10 Latest Blocks
-
 	var newestBlocks []HomeBlock
-
+	var homeTrends []HomeBlockTrend
+	// Get 10 Latest Blocks
 	for i := 0; i < 10; i++ {
 		blockHash, _ := getBlockHash((blockHeight - i), nmcPort)
 		fmt.Println(blockHash)
 		block, _ := getBlock(blockHash, nmcPort)
 		fmt.Println(block.Height)
+		r, f, v, _ := parseBlockTxs(block.Tx, port)
 		// Add block to block list
-		newestBlocks = append(newestBlocks, block)
+		temp := HomeBlock{
+			Height:      int(block.Height),
+			Hash:        block.Hash,
+			Fees:        f,
+			BlockReward: r,
+			BlockValue:  v,
+			Size:        float32(block.Weight),
+			BlockTime:   int32(block.MedianTime),
+			TxCount:     int(block.NTx),
+		}
+		newestBlocks = append(newestBlocks, temp)
+		homeTrends = append(homeTrends, HomeBlockTrend{TxCount: int(block.NTx), BlockValue: v})
 	}
 
-	// Get Trends
+	return newestBlocks, homeTrends, nil
 
 }
 
@@ -294,57 +400,31 @@ func getBlockHeight(portNum int) (int, error) {
 }
 
 func nmcLoadHomeReq(w http.ResponseWriter, r *http.Request) {
-	// if r.Method != http.MethodPost {
-	// 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	// 	return
-	// }
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
-	// // Read the request body
-	// body, err := io.ReadAll(r.Body)
-	// if err != nil {
-	// 	http.Error(w, "Error reading request body", http.StatusBadRequest)
-	// 	return
-	// }
+	blocks, trends, _ := loadHome("nmc")
 
-	// // Define a struct to unmarshal the JSON data
-	// var req struct {
-	// 	//struct fields here
-	// }
+	var res struct {
+		Blocks []HomeBlock      `json:"blocks"`
+		Trends []HomeBlockTrend `json:"trends"`
+	}
 
-	// // Unmarshal the JSON data
-	// err = json.Unmarshal(body, &req)
-	// if err != nil {
-	// 	http.Error(w, "Error unmarshaling JSON data", http.StatusBadRequest)
-	// 	return
-	// }
+	res.Blocks = blocks
+	res.Trends = trends
 
-	// response, err := loadHome("nmc")
-	//================================================================================//
-	//============================== Code Goes Here ==================================//
-	//================================================================================//
+	resJSON, err := json.Marshal(res)
+	if err != nil {
+		http.Error(w, "Error marshaling data", http.StatusInternalServerError)
+		return
+	}
 
-	//================================================================================//
-	//================================================================================//
-	//================================================================================//
-
-	// type res struct {
-	// 	//struct fields here
-	// }
-
-	// // response := res{
-	// // 	//fill fields
-	// // }
-	// // // Marshal the struct into JSON
-	// resJSON, err := json.Marshal(response)
-	// if err != nil {
-	// 	http.Error(w, "Error marshaling data", http.StatusInternalServerError)
-	// 	return
-	// }
-
-	// // Set headers and write JSON to response
-	// w.Header().Set("Content-Type", "application/json")
-	// w.WriteHeader(http.StatusOK)
-	// w.Write(resJSON)
+	// Set headers and write JSON to response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(resJSON)
 }
 
 // method := "getblockhash"

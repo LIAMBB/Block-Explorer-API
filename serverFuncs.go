@@ -33,12 +33,13 @@ func createElectrumRequest(method string, params []interface{}) string {
 
 }
 
-func sendElectrumRequest(jsonRequest string) {
+// TODO: add error handling
+func sendElectrumRequest(jsonRequest string) string {
 	// Connect to the server
 	conn, err := net.Dial("tcp", electrumURL)
 	if err != nil {
 		fmt.Println("Error connecting to the server:", err)
-		return
+		return ""
 	}
 	defer conn.Close()
 
@@ -46,17 +47,17 @@ func sendElectrumRequest(jsonRequest string) {
 	_, err = fmt.Fprintf(conn, jsonRequest)
 	if err != nil {
 		fmt.Println("Error sending JSON-RPC request:", err)
-		return
+		return ""
 	}
 
 	// Read the server's response
 	response, err := bufio.NewReader(conn).ReadString('\n')
 	if err != nil {
 		fmt.Println("Error reading server response:", err)
-		return
+		return ""
 	}
 
-	fmt.Println("Server Response:", response)
+	return response
 }
 
 // Based on the following discussion of electrum scripthashing:
