@@ -109,12 +109,12 @@ type ParentBlockData struct {
 type HomeBlock struct {
 	Height      int     `json:"height"`
 	Hash        string  `json:"hash"`
-	Fees        float32 `json:"fees"`
-	BlockReward float32 `json:"blockreward"`
-	Size        float32 `json:"size"`
+	Fees        float64 `json:"fees"`
+	BlockReward float64 `json:"blockreward"`
+	Size        float64 `json:"size"`
 	BlockTime   int32   `json:"blocktime"`
 	TxCount     int     `json:"txcount"`
-	BlockValue  float32 `json:"blockvalue"`
+	BlockValue  float64 `json:"blockvalue"`
 }
 
 type ElectrumTransaction struct {
@@ -161,7 +161,7 @@ type ElectrumScriptPubKeyData struct {
 
 type HomeBlockTrend struct {
 	TxCount    int     `json:"txcount"`
-	BlockValue float32 `json:"blockvalue"`
+	BlockValue float64 `json:"blockvalue"`
 }
 
 // TODO: replace the implementations pf this with an interface{}["result"] instead to save on repetitive ElectrumResponse structs
@@ -250,10 +250,10 @@ func main() {
 
 // TODO: implement go channels for multi-threading the vin process (requires a lot of electrum requests)
 // Current implementation will be pretty slow due to single threaded iteration
-func parseBlockTxs(txs []TxData, port int) (float32 /*reward*/, float32 /*fees*/, float32 /*value*/, error /*error*/) {
-	var reward float32 = 0.0
-	var fees float32 = 0.0
-	var value float32 = 0.0
+func parseBlockTxs(txs []TxData, port int) (float64 /*reward*/, float64 /*fees*/, float64 /*value*/, error /*error*/) {
+	var reward = 0.0
+	var fees = 0.0
+	var value = 0.0
 
 	for _, tx := range txs {
 		vinVal := 0.0
@@ -264,8 +264,8 @@ func parseBlockTxs(txs []TxData, port int) (float32 /*reward*/, float32 /*fees*/
 		}
 
 		if len(tx.Vin) == 1 && tx.Vin[0].TxID == "" { //Block Reward Tx
-			reward += float32(voutVal)
-			value += float32(voutVal) // rewards don't have vin or fee but do contribute to block tx value
+			reward += voutVal
+			value += voutVal // rewards don't have vin or fee but do contribute to block tx value
 		} else { //Regular Transaction
 			for _, vin := range tx.Vin {
 				temp, _ := getTx(vin.TxID, port)
@@ -274,8 +274,8 @@ func parseBlockTxs(txs []TxData, port int) (float32 /*reward*/, float32 /*fees*/
 				spew.Dump(temp)
 				vinVal += temp.Vout[int(vin.Vout)].Value
 			}
-			fees += float32(vinVal - voutVal)
-			value += float32(vinVal)
+			fees += vinVal - voutVal
+			value += vinVal
 		}
 	}
 
@@ -331,7 +331,7 @@ func loadHome(coin string) ([]HomeBlock, []HomeBlockTrend, error) {
 			Fees:        f,
 			BlockReward: r,
 			BlockValue:  v,
-			Size:        float32(block.Weight),
+			Size:        block.Weight,
 			BlockTime:   int32(block.MedianTime),
 			TxCount:     int(block.NTx),
 		}
