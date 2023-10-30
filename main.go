@@ -10,6 +10,7 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/gorilla/mux"
 )
 
 const (
@@ -246,6 +247,33 @@ func main() {
 	port := "8080"
 	fmt.Printf("Server is running on port %s...\n", port)
 	http.ListenAndServe(":"+port, nil)
+	r := mux.NewRouter()
+
+	// Apply CORS middleware globally for all routes
+	r.Use(corsMiddleware)
+
+	// Define your endpoints and handlers
+	r.HandleFunc("/nmc/loadhomepage", nmcLoadHomeReq)
+
+	// Start the server
+	http.Handle("/", r)
+	http.ListenAndServe(":8080", nil)
+}
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers to allow access from anywhere
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Handle the preflight OPTIONS request
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 // TODO: implement go channels for multi-threading the vin process (requires a lot of electrum requests)
