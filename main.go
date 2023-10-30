@@ -434,7 +434,7 @@ func nmcLoadHomeReq(w http.ResponseWriter, r *http.Request) {
 	// Check if the request is a preflight (OPTIONS) request
 	if r.Method == "OPTIONS" {
 		// Handle preflight requests here by setting CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "https://cors.block-explorer.xyz") // Add your React app's origin here
+		w.Header().Set("Access-Control-Allow-Origin", "*") // Add your React app's origin here
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 		w.WriteHeader(http.StatusOK)
@@ -444,7 +444,7 @@ func nmcLoadHomeReq(w http.ResponseWriter, r *http.Request) {
 	// Handle your regular API routes here
 
 	// Set CORS headers for regular requests
-	w.Header().Set("Access-Control-Allow-Origin", "https://cors.block-explorer.xyz") // Add your React app's origin here
+	w.Header().Set("Access-Control-Allow-Origin", "*") // Add your React app's origin here
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
 	w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 
