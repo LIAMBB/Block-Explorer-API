@@ -171,6 +171,8 @@ func getAddress(addr string, chain string) {
 	} else if chain == "btc" {
 		scriptHash, _ = ElectrumScripthash("mqC6EWespCSjGPXZtz8VCxRSNtrep7FJDA", &chaincfg.MainNetParams)
 	}
+	fmt.Println(chain, ": ", scriptHash)
+
 	params := []any{scriptHash}
 	reqJSON := createElectrumRequest("blockchain.scripthash.get_balance", params)
 	fmt.Println(reqJSON)
