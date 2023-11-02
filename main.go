@@ -108,9 +108,9 @@ func main() {
 	http.HandleFunc("/nmc/address", nmcAddressReq)
 	// Define your endpoints and handlers
 
-	port := "8080"
-	fmt.Printf("Server is running on port %s...\n", port)
-	http.ListenAndServe(":"+port, nil)
+	// port := "8080"
+	// fmt.Printf("Server is running on port %s...\n", port)
+	// http.ListenAndServe(":"+port, nil)
 	r := mux.NewRouter()
 
 	// Apply CORS middleware globally for all routes

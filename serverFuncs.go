@@ -400,7 +400,7 @@ func nmcLoadHomeReq(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error marshaling data", http.StatusInternalServerError)
 		return
 	}
-
+	fmt.Println()
 	// Set headers and write JSON to response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
