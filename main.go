@@ -12,14 +12,14 @@ import (
 )
 
 const (
-	rpcUser = "rpc"
-	rpcPass = "rpc"
-	// electrumURL = "127.0.0.1:50001"
-	electrumURL = "192.168.1.2:50001"
-	coreURL     = "http://localhost"
-	walletURL   = "/wallet/bank" // bank wallet for regtest use
-	nmcPort     = 18443
-	btcPort     = 18444
+	rpcUser     = "rpc"
+	rpcPass     = "rpc"
+	electrumURL = "127.0.0.1:50001" // for localhost testing Electrum
+	// electrumURL = "192.168.1.2:50001" // NMC Endpoint on docker image for deployment
+	coreURL   = "http://localhost"
+	walletURL = "/wallet/bank" // bank wallet for regtest use
+	nmcPort   = 18443
+	btcPort   = 18444
 )
 
 var (
@@ -101,7 +101,7 @@ func main() {
 
 	// loadHome("nmc")
 	// block, _ := getBlock("4ddbe4874f32ad83727a9dafbf177394d9da3e1311c361e5fb27aa139f2a2103", nmcPort)
-
+	nmcParams = nmcMainnetChainParams
 	// spew.Dump(block.Tx)
 	http.HandleFunc("/template", templateEndpoint)
 	http.HandleFunc("/nmc/loadhomepage", nmcLoadHomeReq)
@@ -209,6 +209,7 @@ func getAddress(addr string, chain string) {
 	histTxs := getAddressHist(scriptHash)
 	addrBal := getAddressBal(scriptHash)
 	spew.Dump(histTxs, addrBal)
+<<<<<<< HEAD
 	// getFullHistTx()
 }
 
@@ -243,6 +244,8 @@ func getFullHistTx(histTx HistoryTransaction) {
 	// get size
 	// add Txid
 
+=======
+>>>>>>> Setting up addr Endpoint functionality
 }
 
 type Response struct {
