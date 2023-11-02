@@ -233,7 +233,7 @@ type FullVout struct {
 }
 
 func getFullHistTx(histTx HistoryTransaction) {
-	tx, _ := getTx(histTx.TxHash, nmcPort)
+	// tx, _ := getTx(histTx.TxHash, nmcPort)
 
 	// Get Txs for all Vins
 	// Extract their amount, address, txid and index and add to struct as FullVin
