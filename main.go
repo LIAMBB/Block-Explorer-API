@@ -103,22 +103,20 @@ func main() {
 	// block, _ := getBlock("4ddbe4874f32ad83727a9dafbf177394d9da3e1311c361e5fb27aa139f2a2103", nmcPort)
 	nmcParams = nmcMainnetChainParams
 	// spew.Dump(block.Tx)
-	http.HandleFunc("/template", templateEndpoint)
-	http.HandleFunc("/nmc/loadhomepage", nmcLoadHomeReq)
-	http.HandleFunc("/nmc/address", nmcAddressReq)
-	// Define your endpoints and handlers
 
-	// port := "8080"
-	// fmt.Printf("Server is running on port %s...\n", port)
-	// http.ListenAndServe(":"+port, nil)
 	r := mux.NewRouter()
 
 	// Apply CORS middleware globally for all routes
 	r.Use(corsMiddleware)
 
-	// Start the server
+	r.HandleFunc("/template", templateEndpoint)
+	r.HandleFunc("/nmc/loadhomepage", nmcLoadHomeReq)
+	r.HandleFunc("/nmc/address", nmcAddressReq)
+	// Define your endpoints and handlers
 	http.Handle("/", r)
-	http.ListenAndServe(":8080", nil)
+	port := "8080"
+	fmt.Printf("Server is running on port %s...\n", port)
+	http.ListenAndServe(":"+port, nil)
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
