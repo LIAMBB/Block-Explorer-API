@@ -209,7 +209,6 @@ func getAddress(addr string, chain string) {
 	histTxs := getAddressHist(scriptHash)
 	addrBal := getAddressBal(scriptHash)
 	spew.Dump(histTxs, addrBal)
-<<<<<<< HEAD
 	// getFullHistTx()
 }
 
@@ -234,7 +233,7 @@ type FullVout struct {
 }
 
 func getFullHistTx(histTx HistoryTransaction) {
-	// tx, _ := getTx(histTx.TxHash, nmcPort)
+	tx, _ := getTx(histTx.TxHash, nmcPort)
 
 	// Get Txs for all Vins
 	// Extract their amount, address, txid and index and add to struct as FullVin
@@ -244,8 +243,6 @@ func getFullHistTx(histTx HistoryTransaction) {
 	// get size
 	// add Txid
 
-=======
->>>>>>> Setting up addr Endpoint functionality
 }
 
 type Response struct {
