@@ -106,6 +106,7 @@ func main() {
 	http.HandleFunc("/template", templateEndpoint)
 	http.HandleFunc("/nmc/loadhomepage", nmcLoadHomeReq)
 	http.HandleFunc("/nmc/address", nmcAddressReq)
+	// Define your endpoints and handlers
 
 	port := "8080"
 	fmt.Printf("Server is running on port %s...\n", port)
@@ -114,9 +115,6 @@ func main() {
 
 	// Apply CORS middleware globally for all routes
 	r.Use(corsMiddleware)
-
-	// Define your endpoints and handlers
-	r.HandleFunc("/nmc/loadhomepage", nmcLoadHomeReq)
 
 	// Start the server
 	http.Handle("/", r)
