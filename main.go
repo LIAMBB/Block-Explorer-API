@@ -11,14 +11,14 @@ import (
 )
 
 const (
-	rpcUser = "rpc"
-	rpcPass = "rpc"
-	// electrumURL = "127.0.0.1:50001"
-	electrumURL = "192.168.1.2:50001"
-	coreURL     = "http://localhost"
-	walletURL   = "/wallet/bank" // bank wallet for regtest use
-	nmcPort     = 18443
-	btcPort     = 18444
+	rpcUser     = "rpc"
+	rpcPass     = "rpc"
+	electrumURL = "127.0.0.1:50001" // for localhost testing Electrum
+	// electrumURL = "192.168.1.2:50001" // NMC Endpoint on docker image for deployment
+	coreURL   = "http://localhost"
+	walletURL = "/wallet/bank" // bank wallet for regtest use
+	nmcPort   = 18443
+	btcPort   = 18444
 )
 
 var (
@@ -100,7 +100,7 @@ func main() {
 
 	// loadHome("nmc")
 	// block, _ := getBlock("4ddbe4874f32ad83727a9dafbf177394d9da3e1311c361e5fb27aa139f2a2103", nmcPort)
-
+	nmcParams = nmcMainnetChainParams
 	// spew.Dump(block.Tx)
 	http.HandleFunc("/template", templateEndpoint)
 	http.HandleFunc("/nmc/loadhomepage", nmcLoadHomeReq)
@@ -169,16 +169,66 @@ func nmcAddressReq(w http.ResponseWriter, r *http.Request) {
 func getAddress(addr string, chain string) {
 	var scriptHash string
 	if chain == "nmc" {
-		scriptHash, _ = ElectrumScripthash("mqC6EWespCSjGPXZtz8VCxRSNtrep7FJDA", &nmcParams)
+		var err error
+		scriptHash, err = ElectrumScripthash(addr, &nmcParams)
+		fmt.Println("Error: ", err)
 	} else if chain == "btc" {
-		scriptHash, _ = ElectrumScripthash("mqC6EWespCSjGPXZtz8VCxRSNtrep7FJDA", &chaincfg.MainNetParams)
+		scriptHash, _ = ElectrumScripthash(addr, &chaincfg.MainNetParams)
 	}
 	fmt.Println(chain, ": ", scriptHash)
 
+	histTxs := getAddressHist(scriptHash)
+	addrBal := getAddressBal(scriptHash)
+	spew.Dump(histTxs, addrBal)
+}
+
+type Response struct {
+	JSONRPC string               `json:"jsonrpc"`
+	Result  []HistoryTransaction `json:"result"`
+	ID      int                  `json:"id"`
+}
+
+type HistoryTransaction struct {
+	TxHash string `json:"tx_hash"`
+	Height int    `json:"height"`
+}
+
+func getAddressHist(scriptHash string) []HistoryTransaction {
+	params := []any{scriptHash}
+	reqJSON := createElectrumRequest("blockchain.scripthash.get_history", params)
+	elecRes := sendElectrumRequest(reqJSON)
+	var response Response
+
+	// Unmarshal JSON data into the struct
+	if err := json.Unmarshal([]byte(elecRes), &response); err != nil {
+		fmt.Println("Error:", err)
+		return []HistoryTransaction{}
+	}
+	return response.Result
+}
+
+type BalanceResponse struct {
+	JSONRPC string  `json:"jsonrpc"`
+	Result  AddrBal `json:"result"`
+	ID      int     `json:"id"`
+}
+
+type AddrBal struct {
+	Confirmed   int64 `json:"confirmed"`
+	Unconfirmed int64 `json:"unconfirmed"`
+}
+
+func getAddressBal(scriptHash string) AddrBal {
 	params := []any{scriptHash}
 	reqJSON := createElectrumRequest("blockchain.scripthash.get_balance", params)
-	fmt.Println(reqJSON)
-	fmt.Println()
 	elecRes := sendElectrumRequest(reqJSON)
 	fmt.Println(elecRes)
+	var response BalanceResponse
+
+	// Unmarshal JSON data into the struct
+	if err := json.Unmarshal([]byte(elecRes), &response); err != nil {
+		fmt.Println("Error:", err)
+		return AddrBal{}
+	}
+	return response.Result
 }
