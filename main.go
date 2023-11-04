@@ -8,18 +8,16 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/gorilla/mux"
 )
 
 const (
 	rpcUser     = "rpc"
 	rpcPass     = "rpc"
-	electrumURL = "127.0.0.1:50001" // for localhost testing Electrum
-	// electrumURL = "192.168.1.2:50001" // NMC Endpoint on docker image for deployment
-	coreURL   = "http://localhost"
-	walletURL = "/wallet/bank" // bank wallet for regtest use
-	nmcPort   = 18443
-	btcPort   = 18444
+	electrumURL = "127.0.0.1:50002"
+	coreURL     = "http://localhost"
+	walletURL   = "/wallet/bank" // bank wallet for regtest use
+	nmcPort     = 18443
+	btcPort     = 18444
 )
 
 var (
@@ -101,94 +99,14 @@ func main() {
 
 	// loadHome("nmc")
 	// block, _ := getBlock("4ddbe4874f32ad83727a9dafbf177394d9da3e1311c361e5fb27aa139f2a2103", nmcPort)
-	nmcParams = nmcMainnetChainParams
+
 	// spew.Dump(block.Tx)
+	http.HandleFunc("/template", templateEndpoint)
+	http.HandleFunc("/nmc/loadhomepage", nmcLoadHomeReq)
 
-	r := mux.NewRouter()
-
-	// Apply CORS middleware globally for all routes
-	r.Use(corsMiddleware)
-
-	r.HandleFunc("/template", templateEndpoint)
-	r.HandleFunc("/nmc/loadhomepage", nmcLoadHomeReq)
-	r.HandleFunc("/nmc/address", nmcAddressReq)
-	// Define your endpoints and handlers
-	http.Handle("/", r)
 	port := "8080"
 	fmt.Printf("Server is running on port %s...\n", port)
 	http.ListenAndServe(":"+port, nil)
-}
-
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers to allow access from anywhere
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		// Handle the preflight OPTIONS request
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// postHandler is a dedicated function to handle POST requests to "/post".
-func nmcAddressReq(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Read the request body
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Error reading request body", http.StatusBadRequest)
-		return
-	}
-
-	// Define a struct to unmarshal the JSON data
-	var req struct {
-		Address string `json:"address"` //struct fields here
-	}
-
-	// Unmarshal the JSON data
-	err = json.Unmarshal(body, &req)
-	if err != nil {
-		http.Error(w, "Error unmarshaling JSON data", http.StatusBadRequest)
-		return
-	}
-
-	//================================================================================//
-	//============================== Code Goes Here ==================================//
-	//================================================================================//
-	spew.Dump(req)
-	getAddress(req.Address, "nmc")
-	//================================================================================//
-	//================================================================================//
-	//================================================================================//
-
-	type res struct {
-		//struct fields here
-	}
-
-	response := res{
-		//fill fields
-	}
-	// // Marshal the struct into JSON
-	resJSON, err := json.Marshal(response)
-	if err != nil {
-		http.Error(w, "Error marshaling data", http.StatusInternalServerError)
-		return
-	}
-
-	// Set headers and write JSON to response
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(resJSON)
 }
 
 func getAddress(addr string, chain string) {
@@ -206,12 +124,16 @@ func getAddress(addr string, chain string) {
 	addrBal := getAddressBal(scriptHash)
 	spew.Dump(histTxs, addrBal)
 	// getFullHistTx()
+	getFullHistTxs(histTxs)
+
 }
 
 type FullHistTransaction struct {
 	TxID          string
 	Confirmations int
+	Height        int
 	Size          int
+	VSize         int
 	Vin           []FullVin
 	Vout          []FullVout
 }
@@ -228,10 +150,13 @@ type FullVout struct {
 	Address string
 }
 
-func getFullHistTx(histTx HistoryTransaction) {
-	// tx, _ := getTx(histTx.TxHash, nmcPort)
+func getFullHistTxs(histTxs []HistoryTransaction, addr string) {
+	tx, _ := getTx(histTx.TxHash, nmcPort)
 
 	// Get Txs for all Vins
+	for _, t := range histTxs {
+
+	}
 	// Extract their amount, address, txid and index and add to struct as FullVin
 	// Go through al vouts and populate the FullVout array
 
@@ -239,6 +164,48 @@ func getFullHistTx(histTx HistoryTransaction) {
 	// get size
 	// add Txid
 
+}
+func getFullHistTx(histTx HistoryTransaction, addr string) {
+
+	tx, _ := getTx(histTx.TxHash, 50001)
+
+	currentHeight, _ := getBlockHeight(18443)
+
+	var fullTx FullHistTransaction
+	fullTx.TxID = tx.TxID
+	fullTx.Confirmations = currentHeight - histTx.Height
+	fullTx.Height = histTx.Height
+	// Loop over transaction OUTPUTS
+	for _, vout := range tx.Vout {
+		if vout.Value > 0 {
+			// Retrieve address associated with output
+			address := vout.ScriptPubKey.Address
+			// Add to fullVout struct and append to vout array in fullTx
+		}
+	}
+
+	// Loop over transaction INPUTS
+	for _, vin := range tx.Vin {
+		// Block Rewards won't have a TxId
+		if vin.TxId != "" {
+			// Get transaction associated with this inputs tx id
+			vinTx, err := GetTransaction(vin.TxId, electrumURL)
+			if err != nil {
+				// fmt.Println("286: ", err)
+				return 0.0, err
+			}
+
+			// Assign address associated with specific output of this tx
+			address := vinTx.Vout[vin.Vout].ScriptPubKey.Address
+
+			// Is tx address in wallet? Update tx balance change
+			for _, walletAddr := range addresses {
+				if walletAddr == address {
+					addressBalances[address] -= vinTx.Vout[vin.Vout].Value
+				}
+			}
+		}
+	}
 }
 
 type Response struct {
