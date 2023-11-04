@@ -128,14 +128,21 @@ func getAddress(addr string, chain string) {
 
 }
 
-type FullHistTransaction struct {
-	TxID          string
-	Confirmations int
-	Height        int
-	Size          int
-	VSize         int
-	Vin           []FullVin
-	Vout          []FullVout
+func getFullHistTxs(histTxs []HistoryTransaction, addr string) {
+
+	fullHistTxs := make([]FullHistTransaction, 0)
+	for _, t := range histTxs {
+		tx := getFullHistTx(t, addr)
+		fullHistTxs = append(fullHistTxs, tx)
+	}
+
+	// Extract their amount, address, txid and index and add to struct as FullVin
+	// Go through al vouts and populate the FullVout array
+
+	// calculate confirmations
+	// get size
+	// add Txid
+
 }
 
 type FullVin struct {
@@ -150,22 +157,18 @@ type FullVout struct {
 	Address string
 }
 
-func getFullHistTxs(histTxs []HistoryTransaction, addr string) {
-	tx, _ := getTx(histTx.TxHash, nmcPort)
-
-	// Get Txs for all Vins
-	for _, t := range histTxs {
-
-	}
-	// Extract their amount, address, txid and index and add to struct as FullVin
-	// Go through al vouts and populate the FullVout array
-
-	// calculate confirmations
-	// get size
-	// add Txid
-
+type FullHistTransaction struct {
+	TxID          string
+	Confirmations int
+	Hex           string
+	Height        int
+	Size          int
+	VSize         int
+	Vin           []FullVin
+	Vout          []FullVout
 }
-func getFullHistTx(histTx HistoryTransaction, addr string) {
+
+func getFullHistTx(histTx HistoryTransaction, addr string) FullHistTransaction {
 
 	tx, _ := getTx(histTx.TxHash, 50001)
 
@@ -175,37 +178,38 @@ func getFullHistTx(histTx HistoryTransaction, addr string) {
 	fullTx.TxID = tx.TxID
 	fullTx.Confirmations = currentHeight - histTx.Height
 	fullTx.Height = histTx.Height
+	fullTx.Size = tx.Size
+	fullTx.VSize = tx.Vsize
+	fullTx.Hex = tx.Hex
 	// Loop over transaction OUTPUTS
 	for _, vout := range tx.Vout {
 		if vout.Value > 0 {
-			// Retrieve address associated with output
-			address := vout.ScriptPubKey.Address
 			// Add to fullVout struct and append to vout array in fullTx
+			fullVin := FullVout{Amount: vout.Value, Index: vout.N, Address: vout.ScriptPubKey.Address}
+			fullTx.Vout = append(fullTx.Vout, fullVin)
 		}
 	}
 
 	// Loop over transaction INPUTS
 	for _, vin := range tx.Vin {
 		// Block Rewards won't have a TxId
-		if vin.TxId != "" {
+		if vin.TxID != "" {
 			// Get transaction associated with this inputs tx id
-			vinTx, err := GetTransaction(vin.TxId, electrumURL)
+			vinTx, err := getTx(vin.TxID, 50001)
 			if err != nil {
 				// fmt.Println("286: ", err)
-				return 0.0, err
+				// return 0.0, err
 			}
 
 			// Assign address associated with specific output of this tx
 			address := vinTx.Vout[vin.Vout].ScriptPubKey.Address
 
-			// Is tx address in wallet? Update tx balance change
-			for _, walletAddr := range addresses {
-				if walletAddr == address {
-					addressBalances[address] -= vinTx.Vout[vin.Vout].Value
-				}
-			}
+			fullVin := FullVin{vin.TxID, vinTx.Vout[vin.Vout].Value, vin.Vout, address}
+			fullTx.Vin = append(fullTx.Vin, fullVin)
 		}
 	}
+
+	return fullTx
 }
 
 type Response struct {
