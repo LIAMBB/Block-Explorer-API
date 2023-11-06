@@ -270,6 +270,7 @@ func getAddress(addr string, chain string) ([]FullHistTransaction, []AddrBalHist
 	// Calculate balance history
 	balance := 0.0
 	balHist := make([]AddrBalHistory, 0)
+
 	balHist = append(balHist, AddrBalHistory{fullHistTxs[0].Height - 1, 0.0})
 
 	for i, tx := range fullHistTxs {
@@ -277,6 +278,10 @@ func getAddress(addr string, chain string) ([]FullHistTransaction, []AddrBalHist
 		balance += balChange
 		fullHistTxs[i].BalanceChange = balChange
 		balHist = append(balHist, AddrBalHistory{tx.Height, balance})
+	}
+	currentHeight, _ := getBlockHeight(18443)
+	if balHist[len(balHist)-1].Block != currentHeight {
+		balHist = append(balHist, AddrBalHistory{currentHeight, balHist[len(balHist)-1].Balance})
 	}
 
 	// Need ascending order for return
