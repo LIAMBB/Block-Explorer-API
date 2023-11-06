@@ -167,6 +167,12 @@ func main() {
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
+			// Check if the request is an OPTIONS request (preflight)
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
 			// Continue processing the request
 			next.ServeHTTP(w, r)
 		})
