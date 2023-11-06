@@ -270,6 +270,8 @@ func getAddress(addr string, chain string) ([]FullHistTransaction, []AddrBalHist
 	// Calculate balance history
 	balance := 0.0
 	balHist := make([]AddrBalHistory, 0)
+	balHist = append(balHist, AddrBalHistory{fullHistTxs[0].Height - 1, 0.0})
+
 	for i, tx := range fullHistTxs {
 		balChange := getBalanceChange(tx, addr)
 		balance += balChange
