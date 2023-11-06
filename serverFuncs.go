@@ -207,7 +207,7 @@ func ElectrumScripthash(addressStr string, chainParams *chaincfg.Params) (string
 	addr, err := btcutil.DecodeAddress(addressStr, chainParams)
 
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("210:", err)
 		return "", err
 	}
 
