@@ -35,8 +35,8 @@ type ElectrumTransactionResponse struct {
 }
 
 type AddrBalHistory struct {
-	Block   int
-	Balance float64
+	Block   int     `json:"block"`
+	Balance float64 `json:"balance"`
 }
 
 type FullVin struct {
