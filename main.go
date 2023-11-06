@@ -9,6 +9,7 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/gorilla/mux"
 )
 
 const (
@@ -150,16 +151,32 @@ func exampleElectrum() {
 
 func main() {
 
-	// loadHome("nmc")
-	// block, _ := getBlock("4ddbe4874f32ad83727a9dafbf177394d9da3e1311c361e5fb27aa139f2a2103", nmcPort)
-	// spew.Dump(block.Tx)
-	http.HandleFunc("/template", templateEndpoint)
-	http.HandleFunc("/nmc/loadhomepage", nmcLoadHomeReq)
-	http.HandleFunc("/nmc/address", nmcAddresReq)
+	// Create a new router
+	router := mux.NewRouter()
 
-	port := "8080"
-	fmt.Printf("Server is running on port %s...\n", port)
-	http.ListenAndServe(":"+port, nil)
+	// Endpoints
+	router.HandleFunc("/template", templateEndpoint)
+	router.HandleFunc("/nmc/loadhomepage", nmcLoadHomeReq)
+	router.HandleFunc("/nmc/address", nmcAddresReq)
+
+	// Set up a handler function to handle CORS headers
+	corsHandler := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Set CORS headers to allow any origin
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+			// Continue processing the request
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	// Use the CORS handler for all routes
+	http.Handle("/", corsHandler(router))
+
+	// Start the server on port 8080
+	http.ListenAndServe(":8080", nil)
 }
 
 // postHandler is a dedicated function to handle POST requests to "/post".
