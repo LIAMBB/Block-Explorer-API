@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sort"
 
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
 )
 
@@ -26,65 +24,6 @@ var (
 	nmcParams chaincfg.Params = nmcMainnetChainParams
 	btcParams chaincfg.Params = chaincfg.MainNetParams
 )
-
-// TODO: replace the implementations pf this with an interface{}["result"] instead to save on repetitive ElectrumResponse structs
-type ElectrumTransactionResponse struct {
-	JSONRPC string              `json:"jsonrpc"`
-	Result  ElectrumTransaction `json:"result"`
-	ID      int                 `json:"id"`
-}
-
-type AddrBalHistory struct {
-	Block   int     `json:"block"`
-	Balance float64 `json:"balance"`
-}
-
-type FullVin struct {
-	TxID    string  `json:"txid"`
-	Amount  float64 `json:"amount"`
-	Index   int     `json:"index"`
-	Address string  `json:"address"`
-}
-
-type FullVout struct {
-	Amount  float64 `json:"amount"`
-	Index   int     `json:"index"`
-	Address string  `json:"address"`
-}
-
-type FullHistTransaction struct {
-	TxID          string     `json:"txid"`
-	Confirmations int        `json:"confirmations"`
-	Hex           string     `json:"hex"`
-	Height        int        `json:"height"`
-	Size          int        `json:"size"`
-	VSize         int        `json:"vsize"`
-	BalanceChange float64    `json:"balchange"`
-	Vin           []FullVin  `json:"vins"`
-	Vout          []FullVout `json:"vouts"`
-}
-
-type Response struct {
-	JSONRPC string               `json:"jsonrpc"`
-	Result  []HistoryTransaction `json:"result"`
-	ID      int                  `json:"id"`
-}
-
-type HistoryTransaction struct {
-	TxHash string `json:"tx_hash"`
-	Height int    `json:"height"`
-}
-
-type BalanceResponse struct {
-	JSONRPC string  `json:"jsonrpc"`
-	Result  AddrBal `json:"result"`
-	ID      int     `json:"id"`
-}
-
-type AddrBal struct {
-	Confirmed   int64 `json:"confirmed"`
-	Unconfirmed int64 `json:"unconfirmed"`
-}
 
 // postHandler is a dedicated function to handle POST requests to "/post".
 func templateEndpoint(w http.ResponseWriter, r *http.Request) {
@@ -157,7 +96,8 @@ func main() {
 	// Endpoints
 	router.HandleFunc("/template", templateEndpoint)
 	router.HandleFunc("/nmc/loadhomepage", nmcLoadHomeReq)
-	router.HandleFunc("/nmc/address", nmcAddresReq)
+	router.HandleFunc("/nmc/address", nmcAddressReq)
+	router.HandleFunc("/nmc/block", nmcBlockReq)
 
 	// Set up a handler function to handle CORS headers
 	corsHandler := func(next http.Handler) http.Handler {
@@ -185,8 +125,7 @@ func main() {
 	http.ListenAndServe(":8080", nil)
 }
 
-// postHandler is a dedicated function to handle POST requests to "/post".
-func nmcAddresReq(w http.ResponseWriter, r *http.Request) {
+func nmcBlockReq(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -201,7 +140,9 @@ func nmcAddresReq(w http.ResponseWriter, r *http.Request) {
 
 	// Define a struct to unmarshal the JSON data
 	var req struct {
-		Address string `json:"address"`
+		BlockHash   string `json:"blockhash"`
+		BlockHeight int    `json:"blockheight"`
+		//struct fields here
 	}
 
 	// Unmarshal the JSON data
@@ -211,23 +152,26 @@ func nmcAddresReq(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println(req.Address)
+	//================================================================================//
+	//============================== Code Goes Here ==================================//
+	//================================================================================//
 
-	transactionHistory, balanceHistory, balance := getAddress(req.Address, "nmc")
-
-	type res struct {
-		Balance        AddrBal               `json:"balance"`
-		TxHistory      []FullHistTransaction `json:"txhistory"`
-		BalanceHistory []AddrBalHistory      `json:"balancehistory"`
+	if req.BlockHash == "" && req.BlockHeight == 0 {
+		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
+		return
 	}
 
-	response := res{
-		Balance:        balance,
-		TxHistory:      transactionHistory,
-		BalanceHistory: balanceHistory,
+	if req.BlockHash == "" {
+		req.BlockHash, _ = getBlockHash(req.BlockHeight, 18443)
 	}
+
+	block := getBlockData(req.BlockHash, "nmc")
+	//================================================================================//
+	//================================================================================//
+	//================================================================================//
+
 	// // Marshal the struct into JSON
-	resJSON, err := json.Marshal(response)
+	resJSON, err := json.Marshal(block)
 	if err != nil {
 		http.Error(w, "Error marshaling data", http.StatusInternalServerError)
 		return
@@ -239,101 +183,83 @@ func nmcAddresReq(w http.ResponseWriter, r *http.Request) {
 	w.Write(resJSON)
 }
 
-func getAddress(addr string, chain string) ([]FullHistTransaction, []AddrBalHistory, AddrBal) {
-	var scriptHash string
+type FullBlock struct {
+	Weight            float64           `json:"weight"`
+	Bits              string            `json:"bits"`
+	Confirmations     float64           `json:"confirmations"`
+	MedianTime        float64           `json:"mediantime"`
+	NTx               float64           `json:"nTx"`
+	MerkleRoot        string            `json:"merkleroot"`
+	Time              float64           `json:"time"`
+	Nonce             float64           `json:"nonce"`
+	Difficulty        float64           `json:"difficulty"`
+	Hash              string            `json:"hash"`
+	VersionHex        string            `json:"versionHex"`
+	ChainWork         string            `json:"chainwork"`
+	Tx                []FullTransaction `json:"tx"`
+	AuxPow            AuxPowData        `json:"auxpow"`
+	Version           float64           `json:"version"`
+	PreviousBlockHash string            `json:"previousblockhash"`
+	Height            float64           `json:"height"`
+	StrippedSize      float64           `json:"strippedsize"`
+}
+
+func getBlockData(blockHash string, chain string) FullBlock {
+	port := 0
 	if chain == "nmc" {
-		var err error
-		scriptHash, err = ElectrumScripthash(addr, &nmcMainnetChainParams)
-		fmt.Println("Error: ", err)
+		port = 18443
 	} else if chain == "btc" {
-		scriptHash, _ = ElectrumScripthash(addr, &chaincfg.MainNetParams)
-	}
-	fmt.Println(chain, ": ", scriptHash)
-
-	histTxs := getAddressHist(scriptHash)
-	fmt.Println("++++++++++++++++++++++++++++++==")
-	addrBal := getAddressBal(scriptHash)
-	spew.Dump(histTxs, addrBal)
-	// getFullHistTx()
-
-	fullHistTxs := make([]FullHistTransaction, 0)
-	for _, t := range histTxs {
-		tx := getFullHistTx(t, addr)
-		fullHistTxs = append(fullHistTxs, tx)
+		port = 0
 	}
 
-	// Sort the array by blockheight in ascending order
-	sort.Slice(fullHistTxs, func(i, j int) bool {
-		return fullHistTxs[i].Height < fullHistTxs[j].Height
-	})
+	block, _ := getBlock(blockHash, port)
+	var fullBlock FullBlock
+	fullBlock.Weight = block.Weight
+	fullBlock.Bits = block.Bits
+	fullBlock.Confirmations = block.Confirmations
+	fullBlock.MedianTime = block.MedianTime
+	fullBlock.NTx = block.NTx
+	fullBlock.MerkleRoot = block.MerkleRoot
+	fullBlock.Time = block.Time
+	fullBlock.Nonce = block.Nonce
+	fullBlock.Difficulty = block.Difficulty
+	fullBlock.Hash = block.Hash
+	fullBlock.VersionHex = block.VersionHex
+	fullBlock.ChainWork = block.ChainWork
+	fullBlock.AuxPow = block.AuxPow
+	fullBlock.Version = block.Version
+	fullBlock.PreviousBlockHash = block.PreviousBlockHash
+	fullBlock.Height = block.Height
+	fullBlock.StrippedSize = block.StrippedSize
 
-	// Calculate balance history
-	balance := 0.0
-	balHist := make([]AddrBalHistory, 0)
-
-	balHist = append(balHist, AddrBalHistory{fullHistTxs[0].Height - 1, 0.0})
-
-	for i, tx := range fullHistTxs {
-		balChange := getBalanceChange(tx, addr)
-		balance += balChange
-		fullHistTxs[i].BalanceChange = balChange
-		balHist = append(balHist, AddrBalHistory{tx.Height, balance})
-	}
-	currentHeight, _ := getBlockHeight(18443)
-	if balHist[len(balHist)-1].Block != currentHeight {
-		balHist = append(balHist, AddrBalHistory{currentHeight, balHist[len(balHist)-1].Balance})
-	}
-
-	// Need ascending order for return
-	length := len(fullHistTxs)
-	for i := 0; i < length/2; i++ {
-		fullHistTxs[i], fullHistTxs[length-i-1] = fullHistTxs[length-i-1], fullHistTxs[i]
+	for _, tx := range block.Tx {
+		fullTx := getFullTx(tx.TxID)
+		fullBlock.Tx = append(fullBlock.Tx, fullTx)
 	}
 
-	return fullHistTxs, balHist, addrBal
-
+	return fullBlock
 }
 
-func getFullHistTxs(histTxs []HistoryTransaction, addr string) {
-
-	// Extract their amount, address, txid and index and add to struct as FullVin
-	// Go through al vouts and populate the FullVout array
-
-	// calculate confirmations
-	// get size
-	// add Txid
-
+type FullTransaction struct {
+	TxID   string     `json:"txid"`
+	Hex    string     `json:"hex"`
+	Height int        `json:"height"`
+	Size   int        `json:"size"`
+	VSize  int        `json:"vsize"`
+	Vin    []FullVin  `json:"vins"`
+	Vout   []FullVout `json:"vouts"`
 }
 
-func getBalanceChange(fullTx FullHistTransaction, addr string) float64 {
-	inputVal := 0.0
-	outputVal := 0.0
+func getFullTx(txid string) FullTransaction {
 
-	for _, vin := range fullTx.Vin {
-		if vin.Address == addr {
-			inputVal += vin.Amount
-		}
-	}
+	tx, _ := getTx(txid, 50001)
 
-	for _, vout := range fullTx.Vout {
-		if vout.Address == addr {
-			outputVal += vout.Amount
-		}
-	}
-
-	return outputVal - inputVal
-}
-
-func getFullHistTx(histTx HistoryTransaction, addr string) FullHistTransaction {
-
-	tx, _ := getTx(histTx.TxHash, 50001)
-
-	currentHeight, _ := getBlockHeight(18443)
-
-	var fullTx FullHistTransaction
+	var fullTx FullTransaction
 	fullTx.TxID = tx.TxID
-	fullTx.Confirmations = currentHeight - histTx.Height
-	fullTx.Height = histTx.Height
+	// fullTx.Height = histTx.Height
+	block, _ := getBlock(tx.BlockHash, 18443)
+
+	fullTx.Height = int(block.Height)
 	fullTx.Size = tx.Size
 	fullTx.VSize = tx.Vsize
 	fullTx.Hex = tx.Hex
@@ -366,35 +292,4 @@ func getFullHistTx(histTx HistoryTransaction, addr string) FullHistTransaction {
 	}
 
 	return fullTx
-}
-
-func getAddressHist(scriptHash string) []HistoryTransaction {
-	params := []any{scriptHash}
-	reqJSON := createElectrumRequest("blockchain.scripthash.get_history", params)
-	elecRes := sendElectrumRequest(reqJSON)
-	var response Response
-	fmt.Println("=====================")
-	fmt.Println(elecRes)
-
-	// Unmarshal JSON data into the struct
-	if err := json.Unmarshal([]byte(elecRes), &response); err != nil {
-		fmt.Println("Error:", err)
-		return []HistoryTransaction{}
-	}
-	return response.Result
-}
-
-func getAddressBal(scriptHash string) AddrBal {
-	params := []any{scriptHash}
-	reqJSON := createElectrumRequest("blockchain.scripthash.get_balance", params)
-	elecRes := sendElectrumRequest(reqJSON)
-	fmt.Println(elecRes)
-	var response BalanceResponse
-
-	// Unmarshal JSON data into the struct
-	if err := json.Unmarshal([]byte(elecRes), &response); err != nil {
-		fmt.Println("Error:", err)
-		return AddrBal{}
-	}
-	return response.Result
 }
