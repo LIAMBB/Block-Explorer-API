@@ -98,6 +98,7 @@ func main() {
 	router.HandleFunc("/nmc/loadhomepage", nmcLoadHomeReq)
 	router.HandleFunc("/nmc/address", nmcAddressReq)
 	router.HandleFunc("/nmc/block", nmcBlockReq)
+	router.HandleFunc("/nmc/tx", nmcTxReq)
 
 	// Set up a handler function to handle CORS headers
 	corsHandler := func(next http.Handler) http.Handler {
@@ -123,4 +124,45 @@ func main() {
 
 	// Start the server on port 8080
 	http.ListenAndServe(":8080", nil)
+}
+
+// postHandler is a dedicated function to handle POST requests to "/post".
+func nmcTxReq(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Read the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Error reading request body", http.StatusBadRequest)
+		return
+	}
+
+	// Define a struct to unmarshal the JSON data
+	var req struct {
+		TxId string `json:"txid"`
+	}
+
+	// Unmarshal the JSON data
+	err = json.Unmarshal(body, &req)
+	if err != nil {
+		http.Error(w, "Error unmarshaling JSON data", http.StatusBadRequest)
+		return
+	}
+
+	tx := getFullTx(req.TxId)
+
+	// // Marshal the struct into JSON
+	resJSON, err := json.Marshal(tx)
+	if err != nil {
+		http.Error(w, "Error marshaling data", http.StatusInternalServerError)
+		return
+	}
+
+	// Set headers and write JSON to response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(resJSON)
 }
