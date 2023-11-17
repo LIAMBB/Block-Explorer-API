@@ -99,6 +99,7 @@ func main() {
 	router.HandleFunc("/nmc/address", nmcAddressReq)
 	router.HandleFunc("/nmc/block", nmcBlockReq)
 	router.HandleFunc("/nmc/tx", nmcTxReq)
+	router.HandleFunc("/nmc/name", nmcNameReq)
 
 	// Set up a handler function to handle CORS headers
 	corsHandler := func(next http.Handler) http.Handler {
@@ -127,7 +128,7 @@ func main() {
 }
 
 // postHandler is a dedicated function to handle POST requests to "/post".
-func nmcTxReq(w http.ResponseWriter, r *http.Request) {
+func nmcNameReq(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -142,7 +143,7 @@ func nmcTxReq(w http.ResponseWriter, r *http.Request) {
 
 	// Define a struct to unmarshal the JSON data
 	var req struct {
-		TxId string `json:"txid"`
+		Name string `json:"name"`
 	}
 
 	// Unmarshal the JSON data
@@ -152,10 +153,23 @@ func nmcTxReq(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx := getFullTx(req.TxId)
+	//================================================================================//
+	//============================== Code Goes Here ==================================//
+	//================================================================================//
 
+	//================================================================================//
+	//================================================================================//
+	//================================================================================//
+
+	type res struct {
+		//struct fields here
+	}
+
+	response := res{
+		//fill fields
+	}
 	// // Marshal the struct into JSON
-	resJSON, err := json.Marshal(tx)
+	resJSON, err := json.Marshal(response)
 	if err != nil {
 		http.Error(w, "Error marshaling data", http.StatusInternalServerError)
 		return
