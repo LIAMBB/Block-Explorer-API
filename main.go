@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
 )
 
@@ -156,7 +157,7 @@ func nmcNameReq(w http.ResponseWriter, r *http.Request) {
 	//================================================================================//
 	//============================== Code Goes Here ==================================//
 	//================================================================================//
-
+	getName(req.Name)
 	//================================================================================//
 	//================================================================================//
 	//================================================================================//
@@ -179,4 +180,47 @@ func nmcNameReq(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(resJSON)
+}
+
+func getName(name string) {
+	method := "name_scan"
+	params := []interface{}{name, 1} // verbosity = 2 includes all transactions in block
+
+	result, err := makeRPCRequest(method, params, nmcPort)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return 
+	}
+
+	// Convert the provided data to the MyStruct type
+	var myStruct []NameScanRes
+	dataJSON, err := json.Marshal(result)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return 
+	}
+
+	fmt.Println(string(dataJSON))
+
+	err = json.Unmarshal(dataJSON, &myStruct)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return 
+	}
+
+	spew.Dump(myStruct[0])
+}
+
+type NameScanRes struct {
+	Address       string `json:"address"`
+	Expired       bool   `json:"expired"`
+	ExpiresIn     int    `json:"expires_in"`
+	Height        int    `json:"height"`
+	IsMine        bool   `json:"ismine"`
+	Name          string `json:"name"`
+	NameEncoding  string `json:"name_encoding"`
+	TxID          string `json:"txid"`
+	Value         string `json:"value"`
+	ValueEncoding string `json:"value_encoding"`
+	Vout          int    `json:"vout"`
 }

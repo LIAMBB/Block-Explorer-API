@@ -536,7 +536,7 @@ func makeRPCRequest(method string, params []interface{}, portNum int) (interface
 	auth := base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
 
 	// Prepare the HTTP request
-	req, err := http.NewRequest("POST", coreURL+":"+fmt.Sprint(portNum), bytes.NewBuffer(requestJSON))
+	req, err := http.NewRequest("POST", coreURL+":"+fmt.Sprint(portNum)+"/wallet/emptywallet", bytes.NewBuffer(requestJSON))
 	if err != nil {
 		return nil, err
 	}
@@ -785,7 +785,6 @@ func getAddressBal(scriptHash string) AddrBal {
 	return response.Result
 }
 
-
 // postHandler is a dedicated function to handle POST requests to "/post".
 func nmcTxReq(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -826,7 +825,6 @@ func nmcTxReq(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write(resJSON)
 }
-
 
 func nmcBlockReq(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
