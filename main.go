@@ -183,35 +183,37 @@ func nmcNameReq(w http.ResponseWriter, r *http.Request) {
 }
 
 func getName(name string) {
-	method := "name_scan"
-	params := []interface{}{name, 1} // verbosity = 2 includes all transactions in block
+
+	// Name_history
+	method := "name_history"
+	params := []interface{}{name} // verbosity = 2 includes all transactions in block
 
 	result, err := makeRPCRequest(method, params, nmcPort)
 	if err != nil {
 		fmt.Println("Error:", err)
-		return 
+		return
 	}
 
 	// Convert the provided data to the MyStruct type
-	var myStruct []NameScanRes
+	var nameHistory []NameHistoryRes
 	dataJSON, err := json.Marshal(result)
 	if err != nil {
 		fmt.Println("Error:", err)
-		return 
+		return
 	}
-
-	fmt.Println(string(dataJSON))
-
-	err = json.Unmarshal(dataJSON, &myStruct)
+	// fmt.Println("=============================================================")
+	// fmt.Println(string(dataJSON))
+	// fmt.Println("=============================================================")
+	err = json.Unmarshal(dataJSON, &nameHistory)
 	if err != nil {
 		fmt.Println("Error:", err)
-		return 
+		return
 	}
 
-	spew.Dump(myStruct[0])
+	spew.Dump(nameHistory[0])
 }
 
-type NameScanRes struct {
+type NameHistoryRes struct {
 	Address       string `json:"address"`
 	Expired       bool   `json:"expired"`
 	ExpiresIn     int    `json:"expires_in"`
