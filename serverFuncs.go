@@ -246,6 +246,7 @@ type FullTransaction struct {
 	Vout   []FullVout `json:"vouts"`
 }
 
+// Creates the request string for Electrum
 func createElectrumRequest(method string, params []interface{}) string {
 	// Create a map for the JSON-RPC request
 	request := map[string]interface{}{
@@ -263,10 +264,10 @@ func createElectrumRequest(method string, params []interface{}) string {
 	}
 
 	return string(jsonRequest) + "\n" // Ensure the request ends with a newline character
-
 }
 
-// TODO: add error handling
+// Sends Electrum Request
+// TODO: add error handling, MultiChain support
 func sendElectrumRequest(jsonRequest string) string {
 	// Connect to the server
 	conn, err := net.Dial("tcp", electrumURL)
@@ -325,6 +326,7 @@ func parseBlockTxs(txs []TxData, port int) (float32 /*reward*/, float32 /*fees*/
 	var fees float32 = 0.0
 	var value float32 = 0.0
 
+	// TODO: MultiThread this
 	for _, tx := range txs {
 		vinVal := 0.0
 		voutVal := 0.0
@@ -352,6 +354,8 @@ func parseBlockTxs(txs []TxData, port int) (float32 /*reward*/, float32 /*fees*/
 	return reward, fees, value, nil
 }
 
+// Gets the full decoded transaction from the electrum server
+// TODO: Make better MultiChain support
 func getTx(txid string, port int) (ElectrumTransaction, error) {
 	params := []any{txid, true} // false=rawTx, true=verboseTx
 	reqJSON := createElectrumRequest("blockchain.transaction.get", params)
@@ -365,6 +369,7 @@ func getTx(txid string, port int) (ElectrumTransaction, error) {
 	return response.Result, nil
 }
 
+// Load Homepage data dunction with MultiChain Support
 func loadHome(coin string) ([]HomeBlock, []HomeBlockTrend, error) {
 	port := 0
 	if coin == "nmc" {
@@ -411,6 +416,7 @@ func loadHome(coin string) ([]HomeBlock, []HomeBlockTrend, error) {
 	return newestBlocks, homeTrends, nil
 }
 
+// Gets Block based from blockhash
 func getBlock(hash string, portNum int) (BlockData, error) {
 
 	method := "getblock"
@@ -439,6 +445,7 @@ func getBlock(hash string, portNum int) (BlockData, error) {
 	return myStruct, nil
 }
 
+// Gets blockhash from block height
 func getBlockHash(height int, portNum int) (string, error) {
 
 	method := "getblockhash"
@@ -453,6 +460,8 @@ func getBlockHash(height int, portNum int) (string, error) {
 	return fmt.Sprint(result), nil
 }
 
+// Gets current block height of the chain
+// TODO: improve MultiChain support
 func getBlockHeight(portNum int) (int, error) {
 
 	method := "getblockcount"
@@ -471,6 +480,7 @@ func getBlockHeight(portNum int) (int, error) {
 	}
 }
 
+// NMC Load Home endpoint function
 func nmcLoadHomeReq(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -499,19 +509,6 @@ func nmcLoadHomeReq(w http.ResponseWriter, r *http.Request) {
 	w.Write(resJSON)
 }
 
-// method := "getblockhash"
-// params := []interface{}{250, []interface{}{"minfeerate", "avgfeerate"}}
-
-// method := "getblockhash"
-// params := []interface{}{250}
-
-// result, err := makeRPCRequest(method, params)
-// if err != nil {
-// 	fmt.Println("Error:", err)
-// 	return
-// }
-
-// fmt.Println("Result:", result)
 // Sends a RPC request to the local core
 func makeRPCRequest(method string, params []interface{}, portNum int) (interface{}, error) {
 	// Set the RPC credentials
@@ -571,7 +568,7 @@ func makeRPCRequest(method string, params []interface{}, portNum int) (interface
 	return result, nil
 }
 
-// postHandler is a dedicated function to handle POST requests to "/post".
+// NMC Address endpoint function
 func nmcAddressReq(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -625,6 +622,7 @@ func nmcAddressReq(w http.ResponseWriter, r *http.Request) {
 	w.Write(resJSON)
 }
 
+// Multi Chain Address function
 func getAddress(addr string, chain string) ([]FullHistTransaction, []AddrBalHistory, AddrBal) {
 	var scriptHash string
 	if chain == "nmc" {
@@ -658,7 +656,7 @@ func getAddress(addr string, chain string) ([]FullHistTransaction, []AddrBalHist
 	balHist := make([]AddrBalHistory, 0)
 
 	balHist = append(balHist, AddrBalHistory{fullHistTxs[0].Height - 1, 0.0})
-
+	// TODO: MultiThread this
 	for i, tx := range fullHistTxs {
 		balChange := getBalanceChange(tx, addr)
 		balance += balChange
@@ -677,20 +675,9 @@ func getAddress(addr string, chain string) ([]FullHistTransaction, []AddrBalHist
 	}
 
 	return fullHistTxs, balHist, addrBal
-
 }
 
-func getFullHistTxs(histTxs []HistoryTransaction, addr string) {
-
-	// Extract their amount, address, txid and index and add to struct as FullVin
-	// Go through al vouts and populate the FullVout array
-
-	// calculate confirmations
-	// get size
-	// add Txid
-
-}
-
+// Determines the net effect a transaction has on the provided address's balance
 func getBalanceChange(fullTx FullHistTransaction, addr string) float64 {
 	inputVal := 0.0
 	outputVal := 0.0
@@ -710,6 +697,7 @@ func getBalanceChange(fullTx FullHistTransaction, addr string) float64 {
 	return outputVal - inputVal
 }
 
+// Retrieves the Full Transaction from a tx in a history response
 func getFullHistTx(histTx HistoryTransaction, addr string) FullHistTransaction {
 
 	tx, _ := getTx(histTx.TxHash, 50001)
@@ -754,6 +742,8 @@ func getFullHistTx(histTx HistoryTransaction, addr string) FullHistTransaction {
 	return fullTx
 }
 
+// Gets the transaction history of a given scripthash (address)
+// TODO: MultiChain support
 func getAddressHist(scriptHash string) []HistoryTransaction {
 	params := []any{scriptHash}
 	reqJSON := createElectrumRequest("blockchain.scripthash.get_history", params)
@@ -770,6 +760,8 @@ func getAddressHist(scriptHash string) []HistoryTransaction {
 	return response.Result
 }
 
+// Gets the address balance
+// TODO: MultiChain support
 func getAddressBal(scriptHash string) AddrBal {
 	params := []any{scriptHash}
 	reqJSON := createElectrumRequest("blockchain.scripthash.get_balance", params)
@@ -785,7 +777,7 @@ func getAddressBal(scriptHash string) AddrBal {
 	return response.Result
 }
 
-// postHandler is a dedicated function to handle POST requests to "/post".
+// NMC Transaction endpoint function
 func nmcTxReq(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -826,6 +818,7 @@ func nmcTxReq(w http.ResponseWriter, r *http.Request) {
 	w.Write(resJSON)
 }
 
+// NMC Block endpoint funciton
 func nmcBlockReq(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -884,6 +877,8 @@ func nmcBlockReq(w http.ResponseWriter, r *http.Request) {
 	w.Write(resJSON)
 }
 
+// get Block function
+// TODO: improve multichain support
 func getBlockData(blockHash string, chain string) FullBlock {
 	port := 0
 	if chain == "nmc" {
@@ -912,6 +907,7 @@ func getBlockData(blockHash string, chain string) FullBlock {
 	fullBlock.Height = block.Height
 	fullBlock.StrippedSize = block.StrippedSize
 
+	// TODO: MultiThread This
 	for _, tx := range block.Tx {
 		fullTx := getFullTx(tx.TxID)
 		fullBlock.Tx = append(fullBlock.Tx, fullTx)
