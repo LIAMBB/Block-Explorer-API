@@ -388,6 +388,7 @@ func loadHome(coin string) ([]HomeBlock, []HomeBlockTrend, error) {
 	var newestBlocks []HomeBlock
 	var homeTrends []HomeBlockTrend
 	// Get 10 Latest Blocks
+	// TODO: MultiThread this
 	for i := 0; i < 10; i++ {
 		blockHash, _ := getBlockHash((blockHeight - i), nmcPort)
 		fmt.Println(blockHash)
