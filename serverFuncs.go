@@ -394,7 +394,14 @@ func loadHome(coin string) ([]HomeBlock, []HomeBlockTrend, error) {
 		fmt.Println(blockHash)
 		block, _ := getBlock(blockHash, nmcPort)
 		fmt.Println(block.Height)
-		r, f, v, _ := parseBlockTxs(block.Tx, port)
+		var r, f, v float64
+		// if more than 10 transactions in the block, multithread
+		if len(block.Tx) > 10 {
+			r, f, v, _ = multiParseBlockTxs(block.Tx, port)
+		} else {
+			r, f, v, _ = parseBlockTxs(block.Tx, port)
+		}
+
 		// Add block to block list
 		temp := HomeBlock{
 			Height:      int(block.Height),
